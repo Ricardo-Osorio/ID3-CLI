@@ -11,6 +11,11 @@
             "mode": "debug",
             "program": "${workspaceFolder}",
             "args": ["--dir","./testdir"]
+        },
+        {
+            "name": "Attach",
+            "type": "go",
+            "request": "attach",
         }
     ]
 }

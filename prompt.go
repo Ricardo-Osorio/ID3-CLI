@@ -11,6 +11,7 @@ type MusicMetadata struct {
 	SongName string
 	Album    string
 	Score    float64
+	Sources  int
 }
 
 func (m *MusicMetadata) Copy() MusicMetadata {
@@ -19,6 +20,7 @@ func (m *MusicMetadata) Copy() MusicMetadata {
 		SongName: m.SongName,
 		Album:    m.Album,
 		Score:    m.Score,
+		Sources:  m.Sources,
 	}
 }
 
@@ -32,7 +34,8 @@ func PromptSelectMatch(filename string, input []MusicMetadata) (int, error) {
 {{ "Artist:" | faint }}	{{ .Artist }}
 {{ "Title:" | faint }}	{{ .SongName }}
 {{ "Album:" | faint }}	{{ .Album }}
-{{ "Score:" | faint }}	{{ .Score }}`,
+{{ "Score:" | faint }}	{{ .Score }}
+{{ "Sources:" | faint }}	{{ .Sources }}`,
 	}
 
 	prompt := promptui.Select{

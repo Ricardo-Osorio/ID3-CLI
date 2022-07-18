@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/bogem/id3v2"
@@ -32,18 +33,11 @@ func main() {
 
 	for _, dir := range dirEntries {
 		if dir.IsDir() {
-			// fmt.Printf("folder \"%s\" skipped\n", dir.Name())
 			continue
 		}
 		if !strings.HasSuffix(dir.Name(), ".mp3") {
-			// fmt.Printf("file \"%s\" ignored due to extension\n", dir.Name())
 			continue
 		}
-
-		// ## test
-		t := dir.Name()
-		fmt.Print(t)
-		// ##
 
 		duration, fingerprint, err := NewFingerprint(pathToFpcalc, pathToDir+"/"+dir.Name())
 		if err != nil {
@@ -58,7 +52,7 @@ func main() {
 		}
 
 		if len(response.Results) == 0 || len(response.Results[0].Recordings) == 0 {
-			fmt.Println("no matches")
+			fmt.Printf("No matches for: %s\n", dir.Name())
 			continue
 		}
 
@@ -78,11 +72,20 @@ func main() {
 			music := MusicMetadata{
 				Score: result.Score,
 			}
+
+			// sort by number of sources
+			sort.Slice(result.Recordings, func(i, j int) bool {
+				return result.Recordings[i].Sources > result.Recordings[j].Sources
+			})
+
 			for _, match := range result.Recordings {
-				// due to unknow reasons a song match can be an empty struct
+				// due to unknow reasons a song match can be a single ID
+				// and everything else empty values (empty string, emtpy lists, etc)
 				if len(match.ReleaseGroups) == 0 {
 					continue
 				}
+
+				music.Sources = match.Sources
 
 				music.Artist = ""
 
@@ -95,12 +98,18 @@ func main() {
 				music.SongName = match.Title
 
 				// TODO
+				// use the field "duration" and check if it's too different
+
+				// TODO
+				// MusicBrainz Picard also has tags for Date. Hows does it get it?
+
+				// TODO
 				// this is not just albums, also contains entries of type "single"
 				// this also contains a list of artists
 				// the latter could be useful to cross match with what's in result.Recordings[?].Artists[:]
 				//   I.E. if song is matched to two artists and the album is matched to a single one or different names?
 				for _, albums := range match.ReleaseGroups {
-					// skip compilations (personal preference but could be a flag)
+					// skip compilations (kind of personal preference)
 					if len(albums.SecondaryTypes) != 0 && albums.SecondaryTypes[0] == "Compilation" {
 						continue
 					}
@@ -110,6 +119,10 @@ func main() {
 					input = append(input, music.Copy())
 				}
 			}
+		}
+
+		if len(input) == 0 {
+			continue
 		}
 
 		index, err := PromptSelectMatch(dir.Name(), input)
@@ -126,10 +139,9 @@ func main() {
 			MusicTags{Tag: "Album", Value: input[index].Album},
 		}
 
-		// repeast until the user has had the opportunity to edit all tags
-		// only "continue" will exit the loop
+		// Repeat until the user has had the opportunity to edit all tags
+		// Only "continue" will exit the loop
 		for {
-			// ID3 tags
 			tag, err := id3v2.Open(pathToDir+"/"+dir.Name(), id3v2.Options{Parse: false})
 			if err != nil {
 				fmt.Printf("failed to parse mp3 id3 tags: %s", err.Error())
@@ -143,12 +155,12 @@ func main() {
 			}
 
 			if index == 0 {
-				tag.SetArtist(inputTags[1].Value)
-				tag.SetTitle(inputTags[2].Value)
-				tag.SetAlbum(inputTags[3].Value)
+				tag.SetArtist(SanitizeInput(inputTags[1].Value))
+				tag.SetTitle(SanitizeInput(inputTags[2].Value))
+				tag.SetAlbum(SanitizeInput(inputTags[3].Value))
 				// persist new tags
 				if err = tag.Save(); err != nil {
-					fmt.Printf("failed to store tags to file: %s\n", err.Error())
+					fmt.Printf("failed to store tags: %s\n", err.Error())
 				}
 				break
 			}

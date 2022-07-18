@@ -10,7 +10,7 @@ import (
 
 const (
 	// currently using one from the public docs as mine reports as being invalid
-	API_KEY          = "lT7J8r6N8AM"
+	API_KEY          = "_eaTSIacNA0"
 	ACOUSTID_API_URL = "https://api.acoustid.org/v2/lookup"
 )
 
@@ -34,7 +34,8 @@ type Result struct {
 			Title          string
 			SecondaryTypes []string
 		}
-		Title string
+		Sources int
+		Title   string
 	}
 }
 
@@ -43,7 +44,7 @@ func Request(duration int, fingerprint string) (*AcoustIDResponse, error) {
 		"client=%s&duration=%d&meta=%s&fingerprint=%s",
 		API_KEY,
 		duration,
-		"recordings+releasegroups+compress",
+		"recordings+releasegroups+sources+compress",
 		fingerprint,
 	)
 
@@ -64,7 +65,7 @@ func Request(duration int, fingerprint string) (*AcoustIDResponse, error) {
 		return nil, err
 	}
 
-	fmt.Printf("all body: %s\n", string(body))
+	// fmt.Printf("all body: %s\n", string(body))
 
 	aidResp := &AcoustIDResponse{}
 	err = json.Unmarshal(body, aidResp)
