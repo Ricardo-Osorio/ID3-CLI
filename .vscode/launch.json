@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "args": ["--dir","./testdir"]
+            "args": ["--path","./testdir/AJR - 100 Bad Days.mp3"]
         },
         {
             "name": "Attach",

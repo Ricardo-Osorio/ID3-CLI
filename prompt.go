@@ -27,8 +27,8 @@ func (m *MusicMetadata) Copy() MusicMetadata {
 func PromptSelectMatch(filename string, input []MusicMetadata) (int, error) {
 	templates := &promptui.SelectTemplates{
 		Label:    "Select match for: {{ .FileName | red }}",
-		Active:   "▸ {{ .Artist | green }} - {{ .SongName | green }}",
-		Inactive: "  {{ .Artist | cyan }} - {{ .SongName | cyan }}",
+		Active:   "▸ {{ .Artist }} - {{ .SongName }}",
+		Inactive: "  {{ .Artist | faint }} - {{ .SongName | faint }}",
 		Details: `
 --------- Details ----------
 {{ "Artist:" | faint }}	{{ .Artist }}
@@ -56,17 +56,18 @@ func PromptSelectMatch(filename string, input []MusicMetadata) (int, error) {
 }
 
 type MusicTags struct {
-	Tag   string
-	Value string
+	Tag      string
+	NewValue string
+	OldValue string
 }
 
 func PromptSelectTag(filename string, input []MusicTags) (int, error) {
 	var index int
 
 	templates := &promptui.SelectTemplates{
-		Label: "Edit label for: {{ .FileName | red }}",
-		Active: "{{`▸`|green}} {{ .Tag | red }}{{if .Value}}:{{end}}	{{ .Value | red }}",
-		Inactive: "  {{ .Tag | cyan }}{{if .Value}}:{{end}}	{{ .Value | cyan }}",
+		Label: "Edit tags for: {{ .FileName | red }}",
+		Active: "{{ `▸` | green }} {{ .Tag }}{{with .NewValue}}:	{{.}}{{end}} {{with .OldValue}} {{ `<` | faint }} {{ . | faint }} {{end}}",
+		Inactive: "  {{ .Tag }}{{with .NewValue}}:	{{.}}{{end}} {{with .OldValue}} {{ `<` | faint }} {{ . | faint }} {{end}}",
 	}
 
 	prompt := promptui.Select{

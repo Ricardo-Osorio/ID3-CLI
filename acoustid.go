@@ -10,7 +10,7 @@ import (
 
 const (
 	// currently using one from the public docs as mine reports as being invalid
-	API_KEY          = "_eaTSIacNA0"
+	API_KEY          = "GbffOr1PvAY"
 	ACOUSTID_API_URL = "https://api.acoustid.org/v2/lookup"
 )
 
@@ -64,8 +64,6 @@ func Request(duration int, fingerprint string) (*AcoustIDResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// fmt.Printf("all body: %s\n", string(body))
 
 	aidResp := &AcoustIDResponse{}
 	err = json.Unmarshal(body, aidResp)
