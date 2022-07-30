@@ -1,20 +1,29 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 )
 
-func GetFpcalcPath() string {
+// GetFpcalcPath returns the path to fpcalc and does so in
+// the following order:
+//  - Use value of the env variable "FPCALC_BINARY_PATH"
+//  - Search in the PATH (equivalent to `which fpcalc`)
+//  - Fallback to the project root "./fpcalc"
+func GetFpcalcPath() (string, error) {
 	fpcalc := os.Getenv("FPCALC_BINARY_PATH")
-	if fpcalc == "" {
-		var err error
-		fpcalc, err = exec.LookPath("fpcalc")
-		if err != nil {
-			// TODO check error is due to not finding the binary
-			// fallback to the current dir
-			fpcalc = "./fpcalc"
-		}
+	if fpcalc != "" {
+		return fpcalc, nil
 	}
-	return fpcalc
+
+	fpcalc, err := exec.LookPath("fpcalc")
+	if err == nil {
+		return fpcalc, nil
+	}
+
+	if errors.Is(err, exec.ErrNotFound) {
+		return "./fpcalc", nil
+	}
+	return "", err
 }

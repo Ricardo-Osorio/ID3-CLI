@@ -10,12 +10,14 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "args": ["--path","./testdir/AJR - 100 Bad Days.mp3"]
+            // "args": ["--path","./testdir/AJR - 100 Bad Days.mp3"]
+            "args": ["--path","./testdir/"]
         },
         {
             "name": "Attach",
             "type": "go",
             "request": "attach",
+            "processId": "id3-cmd"
         }
     ]
 }

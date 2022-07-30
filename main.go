@@ -14,25 +14,37 @@ import (
 
 func ParseFlags() string {
 	pathToMusic := ""
-	flag.StringVar(&pathToMusic, "path", "./", "Music directory or mp3 file")
+
+	flag.StringVar(&pathToMusic, "path", ".", "Music directory or mp3 file")
 	flag.Parse()
+
+	if pathToMusic == "" {
+		pathToMusic = "."
+	}
+
 	return pathToMusic
 }
 
 func main() {
-	pathToFpcalc := GetFpcalcPath()
-	pathToMusic := ParseFlags()
-
-	if pathToMusic == "" {
-		pathToMusic = "./"
+	pathToFpcalc, err := GetFpcalcPath()
+	if err != nil {
+		fmt.Printf("failed to get fpcalc path: %s", err.Error())
+		os.Exit(1)
 	}
+	_, err = os.Open(pathToFpcalc)
+	if err != nil {
+		fmt.Printf("fpcalc not found")
+		os.Exit(1)
+	}
+
+	pathToMusic := ParseFlags()
 
 	if strings.HasSuffix(pathToMusic, ".mp3") {
 		// file
 		// extract name and path
 		path := strings.Split(pathToMusic, "/")
 		fileName := path[len(path)-1]
-		pathToMusic := strings.ReplaceAll(pathToMusic, "/"+fileName, "")
+		pathToMusic = strings.ReplaceAll(pathToMusic, "/"+fileName, "")
 		HandleFile(pathToFpcalc, pathToMusic, fileName)
 	} else {
 		// directory
@@ -74,16 +86,13 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 		return nil
 	}
 
-	// response format
-	// list of results, each containing:
-	//   - list of song matched
+	// Response format
+	// List of results, each containing:
+	//   - list of songs matched. Each containing:
+	//		- list of artists matched
+	//   	- list of albums matched
+	//   	- title of song
 	//   - comparison score (certainty of match)
-	//
-	// each song match contains:
-	//   - list of artists matched
-	//   - list of albums matched
-	//   - title of song
-	// creating many different possibilities from a single match :sigh:
 
 	input := []MusicMetadata{}
 	for _, result := range response.Results {
@@ -97,8 +106,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 		})
 
 		for _, match := range result.Recordings {
-			// due to unknow reasons a song match can be a single ID
-			// and everything else empty values (empty string, emtpy lists, etc)
+			// exclude empty match
 			if len(match.ReleaseGroups) == 0 {
 				continue
 			}
@@ -119,7 +127,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 			// use the field "duration" and check if it's too different
 
 			// TODO
-			// MusicBrainz Picard also has tags for Date. Hows does it get it?
+			// MusicBrainz's Picard also has tags for Date. How does it get it?
 
 			// TODO
 			// this is not just albums, also contains entries of type "single"
@@ -127,7 +135,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 			// the latter could be useful to cross match with what's in result.Recordings[?].Artists[:]
 			//   I.E. if song is matched to two artists and the album is matched to a single one or different names?
 			for _, albums := range match.ReleaseGroups {
-				// skip compilations (kind of personal preference)
+				// skip compilations
 				if len(albums.SecondaryTypes) != 0 && albums.SecondaryTypes[0] == "Compilation" {
 					continue
 				}
@@ -156,6 +164,10 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	}
 	defer tag.Close()
 
+	input[index].Artist = SanitizeInput(input[index].Artist)
+	input[index].SongName = SanitizeInput(input[index].SongName)
+	input[index].Album = SanitizeInput(input[index].Album)
+
 	// build input
 	inputTags := []MusicTags{
 		MusicTags{Tag: "Save"},
@@ -165,7 +177,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	}
 
 	// Repeat until the user has had the opportunity to edit all tags
-	// Only "continue" will exit the loop
+	// Only "Save" will exit the loop
 	for {
 		index, err = PromptSelectTag(fileName, inputTags)
 		if err != nil {
@@ -174,10 +186,10 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 
 		if index == 0 {
 			// TODO sanitize input earlier so it doesn't save a value
-			// different than what is show to the user
-			tag.SetArtist(SanitizeInput(inputTags[1].NewValue))
-			tag.SetTitle(SanitizeInput(inputTags[2].NewValue))
-			tag.SetAlbum(SanitizeInput(inputTags[3].NewValue))
+			// different than what is shown to the user
+			tag.SetArtist(inputTags[1].NewValue)
+			tag.SetTitle(inputTags[2].NewValue)
+			tag.SetAlbum(inputTags[3].NewValue)
 			// persist new tags
 			if err = tag.Save(); err != nil {
 				fmt.Printf("failed to store tags: %s\n", err.Error())
@@ -199,6 +211,8 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	return nil
 }
 
+// NewFingerprint runs fpcalc against a file to generate a acoustID
+// Returns the duration of the song (s) and fingerprint
 func NewFingerprint(fpcalcPath, file string) (int, string, error) {
 	out, err := exec.Command(fpcalcPath, "-json", file).Output()
 	if err != nil {

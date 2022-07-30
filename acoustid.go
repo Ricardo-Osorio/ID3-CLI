@@ -10,7 +10,8 @@ import (
 
 const (
 	// currently using one from the public docs as mine reports as being invalid
-	API_KEY          = "GbffOr1PvAY"
+	// refer to https://acoustid.org/webservice#lookup
+	API_KEY          = "AxGMb-mlVAM"
 	ACOUSTID_API_URL = "https://api.acoustid.org/v2/lookup"
 )
 
