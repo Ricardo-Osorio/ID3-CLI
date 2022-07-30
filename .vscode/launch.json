@@ -10,8 +10,8 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            // "args": ["--path","./testdir/AJR - 100 Bad Days.mp3"]
-            "args": ["--path","./testdir/"]
+            // "args": ["--path","./testdir/Abstract - Neverland (ft. Ruth B) (Prod. Blulake).mp3", "--auto-handle-single-match", "true"]
+            "args": ["--path","./testdir/", "--auto-handle-single-match", "true"]
         },
         {
             "name": "Attach",

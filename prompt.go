@@ -48,7 +48,6 @@ func PromptSelectMatch(filename string, input []MusicMetadata) (int, error) {
 
 	index, _, err := prompt.Run()
 	if err != nil {
-		fmt.Printf("failed to run prompt %s\n", err)
 		return -1, err
 	}
 

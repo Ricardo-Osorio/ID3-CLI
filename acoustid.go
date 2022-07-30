@@ -35,8 +35,9 @@ type Result struct {
 			Title          string
 			SecondaryTypes []string
 		}
-		Sources int
-		Title   string
+		Sources  int
+		Title    string
+		Duration int
 	}
 }
 
