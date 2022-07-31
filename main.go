@@ -16,12 +16,14 @@ import (
 var (
 	pathToMusic             string
 	autoSelectSingleMatches bool
+	renameFiles             bool
 	songLengthDifference    int
 )
 
 func ParseFlags() {
 	flag.StringVar(&pathToMusic, "path", ".", "Music directory or mp3 file")
 	flag.BoolVar(&autoSelectSingleMatches, "auto-handle-single-match", false, "Automatically select a match if it's the only result")
+	flag.BoolVar(&renameFiles, "rename-files", false, "Rename mp3 files with artist and song name")
 	flag.IntVar(&songLengthDifference, "song-length-difference", 15, "Skip matches if there's this much difference in duration")
 
 	flag.Parse()
@@ -52,7 +54,9 @@ func main() {
 		fileName := splitPath[len(splitPath)-1]
 		pathToMusic = strings.ReplaceAll(pathToMusic, "/"+fileName, "")
 
-		HandleFile(pathToFpcalc, pathToMusic, fileName)
+		if err = HandleFile(pathToFpcalc, pathToMusic, fileName); err != nil {
+			os.Exit(1)
+		}
 	} else {
 		// directory
 		dirEntries, err := os.ReadDir(pathToMusic)
@@ -69,7 +73,9 @@ func main() {
 				continue
 			}
 
-			HandleFile(pathToFpcalc, pathToMusic, dir.Name())
+			if err = HandleFile(pathToFpcalc, pathToMusic, dir.Name()); err != nil {
+				os.Exit(1)
+			}
 		}
 	}
 }
@@ -77,7 +83,7 @@ func main() {
 func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	duration, fingerprint, err := NewFingerprint(pathToFpcalc, pathToMusic+"/"+fileName)
 	if err != nil {
-		fmt.Printf("failed to generate fingerprint: %s\n", err.Error())
+		fmt.Printf("failed to generate fingerprint for \"%s\": %s\n", fileName, err.Error())
 		return nil
 	}
 
@@ -169,14 +175,12 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	defer tag.Close()
 
 	if len(input) == 1 && autoSelectSingleMatches {
-		tag.SetArtist(input[0].Artist)
-		tag.SetTitle(input[0].SongName)
-		tag.SetAlbum(input[0].Album)
-		// persist new tags
-		if err = tag.Save(); err != nil {
-			fmt.Printf("failed to store tags: %s\n", err.Error())
-		}
 		fmt.Printf("Auto selected single match: for %s\n", fileName)
+		err = CommitChangesToFile(tag, input[0].Artist, input[0].SongName, input[0].Album, fileName)
+		if err != nil {
+			fmt.Printf("Failed to persist changes to file \"%s\": %s\n", fileName, err.Error())
+			return err
+		}
 		return nil
 	}
 
@@ -206,15 +210,13 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 			break
 		}
 
+		// Save options
 		if index == 0 {
-			tag.SetArtist(inputTags[1].NewValue)
-			tag.SetTitle(inputTags[2].NewValue)
-			tag.SetAlbum(inputTags[3].NewValue)
-			// persist new tags
-			if err = tag.Save(); err != nil {
-				fmt.Printf("failed to store tags: %s\n", err.Error())
+			err = CommitChangesToFile(tag, inputTags[1].NewValue, inputTags[2].NewValue, inputTags[3].NewValue, fileName)
+			if err != nil {
+				fmt.Printf("Failed to persist changes to file \"%s\": %s\n", fileName, err.Error())
+				break
 			}
-			break
 		}
 
 		newVal, err := PromptNewValue(inputTags[index].NewValue)
@@ -226,7 +228,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	}
 	if err != nil {
 		fmt.Printf("failed handling user input: %s\n", err.Error())
-		return nil
+		return err
 	}
 	return nil
 }
@@ -250,4 +252,25 @@ func NewFingerprint(fpcalcPath, file string) (int, string, error) {
 	}
 
 	return int(output.Duration), output.Fingerprint, nil
+}
+
+// CommitChangesToFile is the final step to updating a file. It updates
+// the id3 tags and renames it according to its matched result.
+func CommitChangesToFile(file *id3v2.Tag, artist, songName, album, fileName string) error {
+	file.SetArtist(artist)
+	file.SetTitle(songName)
+	file.SetAlbum(album)
+	// persist new tags
+	if err := file.Save(); err != nil {
+		fmt.Printf("failed to store tags: %s\n", err.Error())
+		return err
+	}
+
+	if !renameFiles {
+		return nil
+	}
+
+	os.Rename(pathToMusic+"/"+fileName, fmt.Sprintf("%s/%s - %s.mp3", pathToMusic, artist, songName))
+	fmt.Printf("Renamed file from \"%s\" to \"%s - %s.mp3\"\n", fileName, artist, songName)
+	return nil
 }
