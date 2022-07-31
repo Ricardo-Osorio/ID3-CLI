@@ -125,7 +125,6 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 			music.Sources = match.Sources
 
 			music.Artist = ""
-
 			for _, artist := range match.Artists {
 				music.Artist = music.Artist + artist.Name
 				if artist.JoinPhrase != "" {
@@ -139,12 +138,14 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 
 			// TODO
 			// this is not just albums, also contains entries of type "single"
-			// this also contains a list of artists
-			// the latter could be useful to cross match with what's in result.Recordings[?].Artists[:]
-			//   I.E. if song is matched to two artists and the album is matched to a single one or different names?
 			for _, albums := range match.ReleaseGroups {
 				// skip compilations
 				if len(albums.SecondaryTypes) != 0 && albums.SecondaryTypes[0] == "Compilation" {
+					continue
+				}
+
+				// album matched doesn't include the artist in it
+				if len(albums.Artists) != 0 && !IsArtistInList(match.Artists[0].ID, albums.Artists) {
 					continue
 				}
 
@@ -156,6 +157,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	}
 
 	if len(input) == 0 {
+		// TODO use file name to populate the tags
 		return nil
 	}
 

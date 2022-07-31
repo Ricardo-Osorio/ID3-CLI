@@ -11,7 +11,7 @@ import (
 const (
 	// currently using one from the public docs as mine reports as being invalid
 	// refer to https://acoustid.org/webservice#lookup
-	API_KEY          = "AxGMb-mlVAM"
+	API_KEY          = "cvmvE4sHiAU"
 	ACOUSTID_API_URL = "https://api.acoustid.org/v2/lookup"
 )
 
@@ -23,17 +23,20 @@ type AcoustIDResponse struct {
 type ReqError struct {
 	Message string
 }
+type Artist struct {
+	Name       string
+	JoinPhrase string
+	ID         string
+}
 type Result struct {
 	Score      float64
 	Recordings []struct {
-		Artists []struct {
-			Name       string
-			JoinPhrase string
-		}
+		Artists       []Artist
 		ReleaseGroups []struct {
 			Type           string
 			Title          string
 			SecondaryTypes []string
+			Artists        []Artist
 		}
 		Sources  int
 		Title    string

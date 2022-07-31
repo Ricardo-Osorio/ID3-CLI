@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            // "args": ["--path","./testdir/Abstract - Neverland (ft. Ruth B) (Prod. Blulake).mp3", "--auto-handle-single-match", "true"]
+            // "args": ["--path","./testdir/Aftershock (feat. Jacquie).mp3", "--auto-handle-single-match", "true"]
             "args": ["--path","./testdir/", "--auto-handle-single-match", "true"]
         },
         {
