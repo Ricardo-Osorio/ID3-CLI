@@ -15,7 +15,7 @@
             "name": "Attach",
             "type": "go",
             "request": "attach",
-            "processId": "id3-cmd",
+            "processId": "id3-cli",
             "console": "integratedTerminal",
         }
     ]

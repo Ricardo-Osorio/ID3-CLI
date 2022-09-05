@@ -1,4 +1,4 @@
-module id3-cmd
+module id3-cli
 
 go 1.18
 
