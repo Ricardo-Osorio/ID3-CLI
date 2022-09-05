@@ -24,6 +24,8 @@ func (m *MusicMetadata) Copy() MusicMetadata {
 	}
 }
 
+// PromptSelectMatch is the first step of interactions with the user.
+// Lists all the matches and a brieve list of details for each one.
 func PromptSelectMatch(filename string, input []MusicMetadata) (int, error) {
 	templates := &promptui.SelectTemplates{
 		Label:    "Select match for: {{ .FileName | red }}",
@@ -60,6 +62,8 @@ type MusicTags struct {
 	OldValue string
 }
 
+// PromptSelectTag is the second step of interactions with the user.
+// Shows the current and new id3 tags from the matched song.
 func PromptSelectTag(filename string, input []MusicTags) (int, error) {
 	var index int
 
@@ -86,6 +90,8 @@ func PromptSelectTag(filename string, input []MusicTags) (int, error) {
 	return index, nil
 }
 
+// PromptNewValue is the third and last step of interactions with the user.
+// Asks for an input from the user.
 func PromptNewValue(oldValue string) (string, error) {
 	prompt := promptui.Prompt{
 		Label:       "New value",

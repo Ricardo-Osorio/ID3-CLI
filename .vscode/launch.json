@@ -1,7 +1,4 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -10,14 +7,16 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            // "args": ["--path","./testdir/Aftershock (feat. Jacquie).mp3", "--auto-handle-single-match", "true"]
+            "console": "integratedTerminal",
+            // "args": ["--path","./testdir/Abstract - Scars (ft. RoZe) (Prod. Drumma Battalion).mp3", "--auto-handle-single-match", "true"]
             "args": ["--path","./testdir/", "--auto-handle-single-match", "true"]
         },
         {
             "name": "Attach",
             "type": "go",
             "request": "attach",
-            "processId": "id3-cmd"
+            "processId": "id3-cmd",
+            "console": "integratedTerminal",
         }
     ]
 }

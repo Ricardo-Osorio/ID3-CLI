@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 
@@ -17,6 +15,7 @@ var (
 	pathToMusic             string
 	autoSelectSingleMatches bool
 	renameFiles             bool
+	fallbackToFileName      bool
 	songLengthDifference    int
 )
 
@@ -24,6 +23,7 @@ func ParseFlags() {
 	flag.StringVar(&pathToMusic, "path", ".", "Music directory or mp3 file")
 	flag.BoolVar(&autoSelectSingleMatches, "auto-handle-single-match", false, "Automatically select a match if it's the only result")
 	flag.BoolVar(&renameFiles, "rename-files", false, "Rename mp3 files with artist and song name")
+	flag.BoolVar(&fallbackToFileName, "fallback-to-file-name", true, "If there aren't any matches fallback to using the file name for the tags. Expects to find \"<artists> - <song name>\"")
 	flag.IntVar(&songLengthDifference, "song-length-difference", 15, "Skip matches if there's this much difference in duration")
 
 	flag.Parse()
@@ -49,10 +49,11 @@ func main() {
 
 	if strings.HasSuffix(pathToMusic, ".mp3") {
 		// file
-		// split and extract the name and path
+		// split and extract the name and full path
 		splitPath := strings.Split(pathToMusic, "/")
+
 		fileName := splitPath[len(splitPath)-1]
-		pathToMusic = strings.ReplaceAll(pathToMusic, "/"+fileName, "")
+		pathToMusic = strings.Join(splitPath[:len(splitPath)-1], "/")
 
 		if err = HandleFile(pathToFpcalc, pathToMusic, fileName); err != nil {
 			os.Exit(1)
@@ -93,9 +94,33 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 		return err
 	}
 
-	// TODO: use the file as "name - song.mp3" for the tags
+	tag, err := id3v2.Open(pathToMusic+"/"+fileName, id3v2.Options{Parse: true, ParseFrames: []string{"Artist", "Title", "Album"}})
+	if err != nil {
+		fmt.Printf("failed to parse mp3 id3 tags: %s\n", err.Error())
+		return nil
+	}
+	defer tag.Close()
+
 	if len(response.Results) == 0 || len(response.Results[0].Recordings) == 0 {
 		fmt.Printf("No matches for: %s\n", fileName)
+
+		if fallbackToFileName {
+			cleanName := CleanupFileName(fileName)
+
+			// extract artists and song name from the file name
+			// expects the format to be "<artists> - <song name>.mp3"
+			artist, songName, err := ExtractMetadataFromFileName(cleanName)
+			if err != nil {
+				fmt.Printf("Failed to extract metadata from file's name: %s\n", err.Error())
+				return nil
+			}
+
+			err = CommitChangesToFile(tag, artist, songName, "", fileName)
+			if err != nil {
+				fmt.Printf("Failed to persist changes to file \"%s\": %s\n", fileName, err.Error())
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -140,10 +165,7 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 			music.SongName = match.Title
 
 			// TODO
-			// MusicBrainz's Picard also has tags for Date. How does it get it?
-
-			// TODO
-			// this is not just albums, also contains entries of type "single"
+			// this is not just albums, also contains entries of type "single" which should be handled
 			for _, albums := range match.ReleaseGroups {
 				// skip compilations
 				if len(albums.SecondaryTypes) != 0 && albums.SecondaryTypes[0] == "Compilation" {
@@ -163,16 +185,12 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 	}
 
 	if len(input) == 0 {
-		// TODO use file name to populate the tags
+		// TODO
+		// fallback to using the file name to populate the tags
+		// extracting the artist and song based on a specific format like
+		// <artist> - <song name>.mp3
 		return nil
 	}
-
-	tag, err := id3v2.Open(pathToMusic+"/"+fileName, id3v2.Options{Parse: true, ParseFrames: []string{"Artist", "Title", "Album"}})
-	if err != nil {
-		fmt.Printf("failed to parse mp3 id3 tags: %s\n", err.Error())
-		return nil
-	}
-	defer tag.Close()
 
 	if len(input) == 1 && autoSelectSingleMatches {
 		fmt.Printf("Auto selected single match: for %s\n", fileName)
@@ -230,47 +248,5 @@ func HandleFile(pathToFpcalc, pathToMusic, fileName string) error {
 		fmt.Printf("failed handling user input: %s\n", err.Error())
 		return err
 	}
-	return nil
-}
-
-// NewFingerprint runs fpcalc against a file to generate a acoustID
-// Returns the duration of the song (s) and fingerprint
-func NewFingerprint(fpcalcPath, file string) (int, string, error) {
-	out, err := exec.Command(fpcalcPath, "-json", file).Output()
-	if err != nil {
-		return 0, "", err
-	}
-
-	var output struct {
-		Duration    float64 `json:"duration"`
-		Fingerprint string  `json:"fingerprint"`
-	}
-
-	err = json.Unmarshal(out, &output)
-	if err != nil {
-		return 0, "", fmt.Errorf("invalid JSON output from fpcalc: %w", err)
-	}
-
-	return int(output.Duration), output.Fingerprint, nil
-}
-
-// CommitChangesToFile is the final step to updating a file. It updates
-// the id3 tags and renames it according to its matched result.
-func CommitChangesToFile(file *id3v2.Tag, artist, songName, album, fileName string) error {
-	file.SetArtist(artist)
-	file.SetTitle(songName)
-	file.SetAlbum(album)
-	// persist new tags
-	if err := file.Save(); err != nil {
-		fmt.Printf("failed to store tags: %s\n", err.Error())
-		return err
-	}
-
-	if !renameFiles {
-		return nil
-	}
-
-	os.Rename(pathToMusic+"/"+fileName, fmt.Sprintf("%s/%s - %s.mp3", pathToMusic, artist, songName))
-	fmt.Printf("Renamed file from \"%s\" to \"%s - %s.mp3\"\n", fileName, artist, songName)
 	return nil
 }

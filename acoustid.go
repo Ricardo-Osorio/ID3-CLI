@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os/exec"
 )
 
 const (
-	// currently using one from the public docs as mine reports as being invalid
-	// refer to https://acoustid.org/webservice#lookup
+	// currently using one from the public docs (docs key gets updated daily - refer
+	// to https://acoustid.org/webservice#lookup) as the one we can get seems to only
+	// be valid to upload fingerprints and not lookup.
 	API_KEY          = "cvmvE4sHiAU"
 	ACOUSTID_API_URL = "https://api.acoustid.org/v2/lookup"
 )
@@ -81,4 +83,25 @@ func Request(duration int, fingerprint string) (*AcoustIDResponse, error) {
 	}
 
 	return aidResp, nil
+}
+
+// NewFingerprint runs fpcalc against a file to generate an acoustID.
+// Returns the duration of the song (s) and fingerprint
+func NewFingerprint(fpcalcPath, file string) (int, string, error) {
+	out, err := exec.Command(fpcalcPath, "-json", file).Output()
+	if err != nil {
+		return 0, "", err
+	}
+
+	var output struct {
+		Duration    float64 `json:"duration"`
+		Fingerprint string  `json:"fingerprint"`
+	}
+
+	err = json.Unmarshal(out, &output)
+	if err != nil {
+		return 0, "", fmt.Errorf("invalid JSON output from fpcalc: %w", err)
+	}
+
+	return int(output.Duration), output.Fingerprint, nil
 }
